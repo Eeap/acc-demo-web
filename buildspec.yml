@@ -1,0 +1,32 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $AWS_ECR_REPOSITORY:latest .
+      - docker tag $AWS_ECR_REPOSITORY:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$AWS_ECR_REPOSITORY:latest
+      - echo Pushing the Docker image...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$AWS_ECR_REPOSITORY:latest
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Writing image definitions file...
+      - printf '[{"ImageURI":"%s"}]' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$AWS_ECR_REPOSITORY:latest > imageDetail.json
+      - echo Updating the Task Definition revision...
+      - sed -i "s|IMAGE_URI|$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$AWS_ECR_REPOSITORY:latest|g" taskdef.json
+      - sed -i "s|AWS_ACCOUNT_ID|$AWS_ACCOUNT_ID|g" taskdef.json
+      - TASK_DEFINITION=$(aws ecs register-task-definition --cli-input-json file://taskdef.json | jq -r '.taskDefinition.taskDefinitionArn')
+      - sed -i "s|TASK_DEFINITION|$TASK_DEFINITION|g" appspec.yml
+
+artifacts:
+  files:
+    - imageDetail.json
+    - appspec.yml
+    - taskdef.json
+  discard-paths: yes

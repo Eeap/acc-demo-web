@@ -1,0 +1,23 @@
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: "TASK_DEFINITION"
+        LoadBalancerInfo:
+          ContainerName: "acc-demo"
+          ContainerPort: 80
+        PlatformVersion: "LATEST"
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            Subnets: ["subnet-1","subnet-2"]
+            SecurityGroups: ["sg-0"]
+            AssignPublicIp: "ENABLED"
+        CapacityProviderStrategy:
+          - Base: 0
+            CapacityProvider: "FARGATE"
+            Weight: 1
+
+
+
+            
